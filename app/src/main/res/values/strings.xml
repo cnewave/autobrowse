@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">androidwebview</string>
+    <string name="title_activity_settings">Settings</string>
+
+    <!-- Strings related to Settings -->
+
+    <!-- Example General settings -->
+    <string name="pref_header_general">General</string>
+
+    <string name="pref_title_display_name">Maximum Count</string>
+    <string name="pref_default_display_name">10</string>
+
+
+    <string name="pref_interval_display_name">Sleep Interval</string>
+    <string name="pref_default_interval_name">30</string>
+
+    <string name="ok">ok</string>
+    <string name="cancel">cancel</string>
 </resources>

@@ -1,5 +1,9 @@
 package com.example.kent.androidwebview;
 
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.preference.PreferenceManager;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -36,6 +40,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(TAG, "onResume");
+        String t_Max = PreferenceManager.getDefaultSharedPreferences(this).getString("max_count", "10");
+        String t_InterVal = PreferenceManager.getDefaultSharedPreferences(this).getString("sleep_interval", "30");
+
+        try {
+            mMax = Integer.parseInt(t_Max);
+            SLEEP_INTERVAL = Integer.parseInt(t_InterVal);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Log.d(TAG, "onResume max:" + mMax + " interval:" + SLEEP_INTERVAL);
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         Log.d(TAG, "destroy and stop thread");
@@ -66,14 +86,34 @@ public class MainActivity extends AppCompatActivity {
         //依據itemId來判斷使用者點選哪一個item
         switch (item.getItemId()) {
             case START_AUTO: {
-                Log.d(TAG, "start to auto browse.");
-                Log.d(TAG, "Start the thread");
-                mThread = new Thread(new MyThread());
-                mThread.start();
+                Log.d(TAG, "start to auto browse menu.");
+                final String msg =  "Start to auto browse ? max:"+mMax +" interval:"+SLEEP_INTERVAL;
+
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Auto Browse")
+                        .setMessage(msg)
+                        .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                Log.d(TAG, "Start the thread");
+                                mThread = new Thread(new MyThread());
+                                mThread.start();
+                            }
+                        })
+                        .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                            }
+                        })
+                        .show();
+
             }
             break;
             case CONFIG: {
                 Log.d(TAG, "start to config page");
+                Intent newintent = new Intent();
+                newintent.setClass(MainActivity.this, SettingsActivity.class);
+                startActivity(newintent);
             }
             break;
             default:
@@ -141,7 +181,6 @@ public class MainActivity extends AppCompatActivity {
                         int sleep_time = (int) (Math.random() * 10) + 1;
                         Log.d(TAG, "SleepTime:" + sleep_time);
                         sleep_time += SLEEP_INTERVAL;
-
 
                         final String t_cURL = mList.get(index);
 
