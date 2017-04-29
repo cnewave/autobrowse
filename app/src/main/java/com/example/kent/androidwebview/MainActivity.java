@@ -3,7 +3,10 @@ package com.example.kent.androidwebview;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Button;
@@ -16,9 +19,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-    final String TAG = "AndroidWebView";
-    ArrayList<String> mList = new ArrayList<>();
-    WebView mWebView = null;
+    final private String TAG = "AndroidWebView";
+    private ArrayList<String> mList = new ArrayList<>();
+    private WebView mWebView = null;
     private int mMax = 10;
     private int SLEEP_INTERVAL = 30;
 
@@ -27,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "CreateAutoView");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         loadWeb();
         parseJson();
     }
@@ -41,6 +45,40 @@ public class MainActivity extends AppCompatActivity {
         if (mThread != null) {
             mThread.interrupt();
         }
+    }
+
+
+    final private int START_AUTO = 0;
+    final private int CONFIG = 1;
+    final private String MENU_START = "start";
+    final private String MENU_CONFIG = "config";
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        //參數1:群組id, 參數2:itemId, 參數3:item順序, 參數4:item名稱
+        menu.add(0, START_AUTO, 0, MENU_START);
+        menu.add(0, CONFIG, 1, MENU_CONFIG);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        //依據itemId來判斷使用者點選哪一個item
+        switch (item.getItemId()) {
+            case START_AUTO: {
+                Log.d(TAG, "start to auto browse.");
+                Log.d(TAG, "Start the thread");
+                mThread = new Thread(new MyThread());
+                mThread.start();
+            }
+            break;
+            case CONFIG: {
+                Log.d(TAG, "start to config page");
+            }
+            break;
+            default:
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void parseJson() {
@@ -65,20 +103,12 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "loadConfig");
         String json = null;
         try {
-
             InputStream is = getAssets().open("pixnet.json");
-
             int size = is.available();
-
             byte[] buffer = new byte[size];
-
             is.read(buffer);
-
             is.close();
-
             json = new String(buffer, "UTF-8");
-
-
         } catch (IOException ex) {
             ex.printStackTrace();
             return null;
@@ -92,17 +122,6 @@ public class MainActivity extends AppCompatActivity {
         WebSettings webSettings = mWebView.getSettings();
 
         webSettings.setJavaScriptEnabled(true);
-        webSettings.setUserAgentString("Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.4) Gecko/20100101 Firefox/4.0");
-
-        Button next = (Button) findViewById(R.id.next);
-        next.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // Perform action on click
-                Log.d(TAG, "Start the thread");
-                mThread = new Thread(new MyThread());
-                mThread.start();
-            }
-        });
     }
 
     private int mPrevious = -1;
