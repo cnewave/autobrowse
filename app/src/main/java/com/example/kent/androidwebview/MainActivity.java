@@ -13,6 +13,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
 
 import org.json.JSONArray;
@@ -70,14 +71,17 @@ public class MainActivity extends AppCompatActivity {
 
     final private int START_AUTO = 0;
     final private int CONFIG = 1;
+    final private int CHECK_MY_IP = 2;
     final private String MENU_START = "start";
     final private String MENU_CONFIG = "config";
+    final private String MENU_CHECKIP = "check ip";
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         //參數1:群組id, 參數2:itemId, 參數3:item順序, 參數4:item名稱
         menu.add(0, START_AUTO, 0, MENU_START);
         menu.add(0, CONFIG, 1, MENU_CONFIG);
+        menu.add(0, CHECK_MY_IP, 2, MENU_CHECKIP);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -87,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             case START_AUTO: {
                 Log.d(TAG, "start to auto browse menu.");
-                final String msg =  "Start to auto browse ? max:"+mMax +" interval:"+SLEEP_INTERVAL;
+                final String msg = "Start to auto browse ? max:" + mMax + " interval:" + SLEEP_INTERVAL;
 
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Auto Browse")
@@ -116,7 +120,19 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(newintent);
             }
             break;
+            case CHECK_MY_IP: {
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    public void run() {
+                        Log.d(TAG, "Check ip");
+                        if (mWebView != null) {
+                            mWebView.loadUrl("https://www.whatismyip.com/");
+                        }
+                    }
+                });
+            }
+            break;
             default:
+                break;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -162,6 +178,17 @@ public class MainActivity extends AppCompatActivity {
         WebSettings webSettings = mWebView.getSettings();
 
         webSettings.setJavaScriptEnabled(true);
+        mWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                Log.d(TAG, "shouldOverrideUrlLoading." + url);
+                if (view != null) {
+                    view.loadUrl(url);
+                }
+                return true;
+            }
+        });
+
     }
 
     private int mPrevious = -1;
@@ -204,6 +231,12 @@ public class MainActivity extends AppCompatActivity {
                 } finally {
                     Log.d(TAG, "Ok, exit the thread");
                 }
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    public void run() {
+                        Log.d(TAG, "Bye Bye.");
+                        finish();
+                    }
+                });
             }
         }
     }
