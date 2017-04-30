@@ -145,9 +145,11 @@ public class MainActivity extends AppCompatActivity {
             JSONObject obj = new JSONObject(config);
             JSONArray jlist = obj.getJSONArray("web");
             for (int i = 0; i < jlist.length(); i++) {
-                String temp = jlist.getString(i);
-                //Log.d(TAG, "web:" + temp);
-                mList.add(temp);
+                JSONObject item = jlist.getJSONObject(i);
+                String name = item.getString("name");
+                String url = item.getString("url");
+                Log.d(TAG, "name:" + name + " url:" + url);
+                mList.add(url);
             }
             Log.d(TAG, "total size:" + mList.size());
         } catch (Exception e) {

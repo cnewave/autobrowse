@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AutoBrowser</string>
+    <string name="app_name">AutoBrowse</string>
     <string name="title_activity_settings">Settings</string>
 
     <!-- Strings related to Settings -->
