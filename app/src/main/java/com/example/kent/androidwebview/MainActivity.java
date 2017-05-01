@@ -37,13 +37,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         loadWeb();
-        parseJson();
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         Log.d(TAG, "onResume");
+        parseJson();
+
         String t_Max = PreferenceManager.getDefaultSharedPreferences(this).getString("max_count", "10");
         String t_InterVal = PreferenceManager.getDefaultSharedPreferences(this).getString("sleep_interval", "30");
 
@@ -148,10 +150,14 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject item = jlist.getJSONObject(i);
                 String name = item.getString("name");
                 String url = item.getString("url");
-                Log.d(TAG, "name:" + name + " url:" + url);
-                mList.add(url);
+                boolean enable = item.getBoolean("enable");
+
+                if (enable) {
+                    Log.d(TAG, "Enable name:" + name + " enable:" + enable);
+                    mList.add(url);
+                }
             }
-            Log.d(TAG, "total size:" + mList.size());
+            Log.d(TAG, "Total size:" + mList.size());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -218,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
                             public void run() {
                                 Log.d(TAG, "-->" + t_cURL);
                                 if (mWebView != null) {
-                                    mWebView.loadUrl(t_cURL);
+                                    // mWebView.loadUrl(t_cURL);
                                 }
                             }
                         });
