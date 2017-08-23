@@ -3,6 +3,7 @@ package com.example.kent.androidwebview;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -12,6 +13,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -29,13 +31,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    final private String TAG = "AndroidWebView";
+    final private String TAG = "AutoBrowse";
+    final private int START_AUTO = 0;
+    final private int CONFIG = 1;
+    final private int CHECK_MY_IP = 2;
+    final private int EDIT_LIST = 3;
+    final private int RESET_LIST = 4;
+    final private String MENU_START = "start";
+    final private String MENU_CONFIG = "config";
+    final private String MENU_CHECKIP = "check ip";
+    final private String MENU_EDIT_LIST = "Edit list";
+    final private String MENU_RESET_LIST = "Reset list";
+    // File related
+    private final String fileName = "pixnet.json";
     private List<String> mList = new ArrayList<>();
     private List<WebInfo> mWebInfos = new ArrayList<>();
-
     private WebView mWebView = null;
     private int mMax = 10;
     private int SLEEP_INTERVAL = 30;
+    private int mPrevious = -1;
+    private Thread mThread = null;
+    private Object mWait = new Object();
+    private boolean mLoad = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         loadWeb();
 
+
     }
 
     @Override
@@ -53,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "onResume");
         parseJson();
         getConfig();
+        wakeDim();
     }
 
     private void getConfig() {
@@ -79,19 +98,8 @@ public class MainActivity extends AppCompatActivity {
         if (mThread != null) {
             mThread.interrupt();
         }
+        releaseDim();
     }
-
-
-    final private int START_AUTO = 0;
-    final private int CONFIG = 1;
-    final private int CHECK_MY_IP = 2;
-    final private int EDIT_LIST = 3;
-    final private int RESET_LIST = 4;
-    final private String MENU_START = "start";
-    final private String MENU_CONFIG = "config";
-    final private String MENU_CHECKIP = "check ip";
-    final private String MENU_EDIT_LIST = "Edit list";
-    final private String MENU_RESET_LIST = "Reset list";
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -165,6 +173,7 @@ public class MainActivity extends AppCompatActivity {
                     boolean enable = webIntem.isEnable();
                     items[i] = name;
                     enables[i] = enable;
+                    Log.d(TAG, "name:" + name + " enable:" + enable);
                 }
 
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -185,6 +194,7 @@ public class MainActivity extends AppCompatActivity {
                                 String newConfig = createJson();
                                 // save to file
                                 saveToFile(newConfig);
+                                parseJson();
                             }
                         })
                         .setNegativeButton("No", new DialogInterface.OnClickListener() {
@@ -218,9 +228,6 @@ public class MainActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
-
-    // File related
-    private final String fileName = "pixnet.json";
 
     private void saveToFile(String data) {
         // reparse json
@@ -270,7 +277,7 @@ public class MainActivity extends AppCompatActivity {
         return "";
     }
 
-    private void parseJson() {
+    private synchronized void parseJson() {
         try {
             mList.clear();
             mWebInfos.clear();
@@ -337,11 +344,36 @@ public class MainActivity extends AppCompatActivity {
                 }
                 return true;
             }
+
+            public void onPageFinished(WebView view, String url) {
+                // do your stuff here
+                Log.d(TAG, "Finish the page load." + url);
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    public void run() {
+                        if (mWebView != null && mLoad) {
+                            mLoad = false;
+                            mWebView.loadUrl("about:blank");
+                        }
+                    }
+                });
+
+            }
         });
 
     }
 
-    private int mPrevious = -1;
+    PowerManager pm;
+    PowerManager.WakeLock wl;
+    private void wakeDim() {
+
+        pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wl = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "AutoB");
+        wl.acquire();
+    }
+
+    private void releaseDim() {
+        wl.release();
+    }
 
     private class MyThread implements Runnable {
         public void run() {
@@ -352,7 +384,7 @@ public class MainActivity extends AppCompatActivity {
                         int index = -1;
                         do {
                             index = (int) (Math.random() * seed);// index of list
-                        } while (index == mPrevious);
+                        } while (index == mPrevious && seed > 1);// if seed is 1 , not do again.
                         mPrevious = index;
                         // random sleep interval 1-10
                         int sleep_time = (int) (Math.random() * 10) + 1;
@@ -366,6 +398,7 @@ public class MainActivity extends AppCompatActivity {
                             public void run() {
                                 Log.d(TAG, "-->" + t_cURL);
                                 if (mWebView != null) {
+                                    mLoad = true;
                                     mWebView.loadUrl(t_cURL);
                                 }
                             }
@@ -391,9 +424,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private Thread mThread = null;
-    private Object mWait = new Object();
-
     private class WebInfo {
         private boolean mEnalbe;
         private String mURL;
@@ -409,16 +439,16 @@ public class MainActivity extends AppCompatActivity {
             return mEnalbe;
         }
 
+        void setEnable(boolean enable) {
+            mEnalbe = enable;
+        }
+
         String getName() {
             return mName;
         }
 
         String getURL() {
             return mURL;
-        }
-
-        void setEnable(boolean enable) {
-            mEnalbe = enable;
         }
     }
 }
