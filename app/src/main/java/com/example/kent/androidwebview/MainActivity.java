@@ -3,6 +3,7 @@ package com.example.kent.androidwebview;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.Handler;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AlertDialog;
@@ -61,8 +62,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         loadWeb();
-
-
     }
 
     @Override
@@ -348,15 +347,23 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 // do your stuff here
                 Log.d(TAG, "Finish the page load." + url);
-                MainActivity.this.runOnUiThread(new Runnable() {
-                    public void run() {
-                        if (mWebView != null && mLoad) {
-                            mLoad = false;
-                            mWebView.loadUrl("about:blank");
-                        }
-                    }
-                });
+                Handler handler = new Handler();
+                handler.postDelayed(new Runnable() {
 
+                    @Override
+                    public void run() {
+                        Log.d("tag", "set blank page..");
+                        MainActivity.this.runOnUiThread(new Runnable() {
+                            public void run() {
+                                if (mWebView != null && mLoad) {
+                                    mLoad = false;
+                                    mWebView.loadUrl("about:blank");
+                                }
+                            }
+                        });
+
+                    }
+                }, 4000);
             }
         });
 
@@ -364,6 +371,7 @@ public class MainActivity extends AppCompatActivity {
 
     PowerManager pm;
     PowerManager.WakeLock wl;
+
     private void wakeDim() {
 
         pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
