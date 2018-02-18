@@ -1,38 +1,25 @@
 package com.example.kent.androidwebview;
 
-import android.app.AlarmManager;
-import android.app.Notification;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.os.Handler;
-import android.os.PowerManager;
-import android.preference.PreferenceManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.view.WindowManager;
-import android.webkit.WebChromeClient;
-import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.widget.Button;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileInputStream;
+
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -49,15 +36,11 @@ public class MainActivity extends AppCompatActivity {
     final private String MENU_RESET_LIST = "Reset list";
     // File related
     private final String fileName = "pixnet.json";
-    private List<String> mList = new ArrayList<>();
     private List<WebInfo> mWebInfos = new ArrayList<>();
     private WebView mWebView = null;
-    private int mMax = 10;
-    private int SLEEP_INTERVAL = 30;
-    private int mPrevious = -1;
-    private Thread mThread = null;
-    private Object mWait = new Object();
-    private boolean mLoad = false;
+
+
+    DataModel mData = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,44 +48,20 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        loadWeb();
+        mData = DataModel.getInstance(MainActivity.this);
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        Log.d(TAG, "onResume");
-        parseJson();
-        getConfig();
-        wakeDim();
-    }
-
-    private void getConfig() {
-
-        String t_Max = PreferenceManager.getDefaultSharedPreferences(this).getString("max_count", "10");
-        String t_InterVal = PreferenceManager.getDefaultSharedPreferences(this).getString("sleep_interval", "30");
-
-        try {
-            mMax = Integer.parseInt(t_Max);
-            SLEEP_INTERVAL = Integer.parseInt(t_InterVal);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        Log.d(TAG, "onResume max:" + mMax + " interval:" + SLEEP_INTERVAL);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        Log.d(TAG, "destroy and stop thread");
-        synchronized (mWait) {
-            mWait.notifyAll();
-        }
-        if (mThread != null) {
-            mThread.interrupt();
-        }
-        releaseDim();
-    }
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//        Log.d(TAG, "onResume");
+//    }
+//
+//    @Override
+//    protected void onPause() {
+//        super.onPause();
+//        Log.d(TAG, "destroy and stop thread");
+//    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -114,25 +73,12 @@ public class MainActivity extends AppCompatActivity {
         menu.add(0, RESET_LIST, 4, MENU_RESET_LIST);
         return super.onCreateOptionsMenu(menu);
     }
-    private void startAlarm(){
-        Log.d(TAG, "startAlarm");
-        Calendar cal = Calendar.getInstance();
-        // 設定於 10 seconds
-        cal.add(Calendar.SECOND, 5);
-
-        Intent intent = new Intent(this, AlarmReceiver.class);
-        intent.putExtra("msg", "play_hskay");
-
-        PendingIntent pi = PendingIntent.getBroadcast(this, 1, intent, 0);
-
-        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-//        am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
 
 
-        am.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
-                1000 * 15, pi);
+    private void startService(){
+        Intent intent = new Intent(this, AutoService.class);
+        startService(intent);
     }
-
 
 
     @Override
@@ -141,7 +87,9 @@ public class MainActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             case START_AUTO: {
                 Log.d(TAG, "start to auto browse menu.");
-                final String msg = "Start to auto browse ? max:" + mMax + " interval:" + SLEEP_INTERVAL;
+                int max = DataModel.getInstance(MainActivity.this).getMax();
+                int interval = DataModel.getInstance(MainActivity.this).getSleepInterval();
+                final String msg = "Start to auto browse ? max:" + max + " interval:" + interval;
 
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Auto Browse")
@@ -149,10 +97,9 @@ public class MainActivity extends AppCompatActivity {
                         .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                Log.d(TAG, "Start the thread");
-//                                mThread = new Thread(new MyThread());
-//                                mThread.start();
-                                startAlarm();
+                                Log.d(TAG, "Start the service");
+                                startService();
+                                finish();
                             }
                         })
                         .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
@@ -184,7 +131,12 @@ public class MainActivity extends AppCompatActivity {
             break;
 
             case EDIT_LIST: {
+                if(mData ==  null ){
+                    Log.e(TAG, "Fail to edit list");
+                    return true;
+                }
                 Log.d(TAG, "launch alert dialog");
+                mWebInfos = mData.getInfos();
 
                 final int size = mWebInfos.size();
                 final String[] items = new String[size];
@@ -197,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
                     boolean enable = webIntem.isEnable();
                     items[i] = name;
                     enables[i] = enable;
-                    Log.d(TAG, "name:" + name + " enable:" + enable);
+//                    Log.d(TAG, "name:" + name + " enable:" + enable);
                 }
 
                 final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -218,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
                                 String newConfig = createJson();
                                 // save to file
                                 saveToFile(newConfig);
-                                parseJson();
+                                mData.parseJson();
                             }
                         })
                         .setNegativeButton("No", new DialogInterface.OnClickListener() {
@@ -293,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, " Delete file list. ");
             file.delete();
         }
-        parseJson();
+        mData.parseJson();
     }
 
     private String createJson() {
@@ -319,187 +271,174 @@ public class MainActivity extends AppCompatActivity {
         return "";
     }
 
-    private synchronized void parseJson() {
-        try {
-            mList.clear();
-            mWebInfos.clear();
-            String config = loadConfig();
-            //Log.d(TAG," parse Json "+config);
-            JSONObject obj = new JSONObject(config);
-            JSONArray jlist = obj.getJSONArray("web");
-            for (int i = 0; i < jlist.length(); i++) {
-                JSONObject item = jlist.getJSONObject(i);
-                String name = item.getString("name");
-                String url = item.getString("url");
-                boolean enable = item.getBoolean("enable");
-                // Web info list
-                mWebInfos.add(new WebInfo(name, url, enable));
-                if (enable) {
-                    Log.d(TAG, "Enable name:" + name + " enable:" + enable);
-                    mList.add(url);
-                }
-            }
-            Log.d(TAG, "Total size:" + mList.size());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+//    private synchronized void parseJson() {
+//        try {
+//            mList.clear();
+//            mWebInfos.clear();
+//            String config = loadConfig();
+//            //Log.d(TAG," parse Json "+config);
+//            JSONObject obj = new JSONObject(config);
+//            JSONArray jlist = obj.getJSONArray("web");
+//            for (int i = 0; i < jlist.length(); i++) {
+//                JSONObject item = jlist.getJSONObject(i);
+//                String name = item.getString("name");
+//                String url = item.getString("url");
+//                boolean enable = item.getBoolean("enable");
+//                // Web info list
+//                mWebInfos.add(new WebInfo(name, url, enable));
+//                if (enable) {
+////                    Log.d(TAG, "Enable name:" + name + " enable:" + enable);
+//                    mList.add(url);
+//                }
+//            }
+//            Log.d(TAG, "Total size:" + mList.size());
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
+//
+//    private String loadConfig() {
+//        Log.d(TAG, "loadConfig");
+//        String json;
+//        InputStream is = null;
+//        try {
+//
+//            File file = new File(this.getFilesDir(), fileName);
+//            if (file.exists()) {
+//                Log.d(TAG, "Read file");
+//                is = new FileInputStream(file);
+//            } else {
+//                Log.d(TAG, "load default config.");
+//                is = getAssets().open(fileName);
+//            }
+//            int size = is.available();
+//            byte[] buffer = new byte[size];
+//            is.read(buffer);
+//            is.close();
+//            json = new String(buffer, "UTF-8");
+//        } catch (IOException ex) {
+//            ex.printStackTrace();
+//            return null;
+//        }
+//        return json;
+//    }
+//
+//    private void loadWeb() {
+//        Log.d(TAG, "loadWeb.");
+//        mWebView = (WebView) findViewById(R.id.webview);
+//        WebSettings webSettings = mWebView.getSettings();
+//
+//        webSettings.setJavaScriptEnabled(true);
+//        mWebView.setWebViewClient(new WebViewClient() {
+//            @Override
+//            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+//                Log.d(TAG, "shouldOverrideUrlLoading." + url);
+//                if (view != null) {
+//                    view.loadUrl(url);
+//                }
+//                return true;
+//            }
+//
+//            public void onPageFinished(WebView view, String url) {
+//                // do your stuff here
+//                Log.d(TAG, "Finish the page load." + url);
+//                Handler handler = new Handler();
+//                handler.postDelayed(new Runnable() {
+//
+//                    @Override
+//                    public void run() {
+//                        Log.d("tag", "set blank page..");
+//                        MainActivity.this.runOnUiThread(new Runnable() {
+//                            public void run() {
+//                                if (mWebView != null && mLoad) {
+//                                    mLoad = false;
+//                                    mWebView.loadUrl("about:blank");
+//                                }
+//                            }
+//                        });
+//
+//                    }
+//                }, 4000);
+//            }
+//        });
+//
+//    }
 
-    private String loadConfig() {
-        Log.d(TAG, "loadConfig");
-        String json;
-        InputStream is = null;
-        try {
 
-            File file = new File(this.getFilesDir(), fileName);
-            if (file.exists()) {
-                Log.d(TAG, "Read file");
-                is = new FileInputStream(file);
-            } else {
-                Log.d(TAG, "load default config.");
-                is = getAssets().open(fileName);
-            }
-            int size = is.available();
-            byte[] buffer = new byte[size];
-            is.read(buffer);
-            is.close();
-            json = new String(buffer, "UTF-8");
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            return null;
-        }
-        return json;
-    }
+//    private class MyThread implements Runnable {
+//        public void run() {
+//            int seed = mList.size();
+//            if (seed > 0) {
+//                try {
+//                    for (int i = 0; i < mMax && !Thread.interrupted(); i++) {
+//                        int index = -1;
+//                        do {
+//                            index = (int) (Math.random() * seed);// index of list
+//                        } while (index == mPrevious && seed > 1);// if seed is 1 , not do again.
+//                        mPrevious = index;
+//                        // random sleep interval 1-10
+//                        int sleep_time = (int) (Math.random() * 10) + 1;
+//                        Log.d(TAG, "SleepTime:" + sleep_time);
+//                        sleep_time += SLEEP_INTERVAL;
+//
+//                        final String t_cURL = mList.get(index);
+//
+//                        Log.d(TAG, "Index:" + index);
+//                        MainActivity.this.runOnUiThread(new Runnable() {
+//                            public void run() {
+//                                Log.d(TAG, "-->" + t_cURL);
+//                                if (mWebView != null) {
+//                                    mLoad = true;
+//                                    mWebView.loadUrl(t_cURL);
+//                                }
+//                            }
+//                        });
+//
+//                        synchronized (mWait) {
+//                            mWait.wait(sleep_time * 1000);
+//                        }
+//                    }
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                    Log.d(TAG, "Got exception");
+//                } finally {
+//                    Log.d(TAG, "Ok, exit the thread");
+//                }
+//                MainActivity.this.runOnUiThread(new Runnable() {
+//                    public void run() {
+//                        Log.d(TAG, "Bye Bye.");
+//                        finish();
+//                    }
+//                });
+//            }
+//        }
+//    }
 
-    private void loadWeb() {
-        Log.d(TAG, "loadWeb.");
-        mWebView = (WebView) findViewById(R.id.webview);
-        WebSettings webSettings = mWebView.getSettings();
-
-        webSettings.setJavaScriptEnabled(true);
-        mWebView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                Log.d(TAG, "shouldOverrideUrlLoading." + url);
-                if (view != null) {
-                    view.loadUrl(url);
-                }
-                return true;
-            }
-
-            public void onPageFinished(WebView view, String url) {
-                // do your stuff here
-                Log.d(TAG, "Finish the page load." + url);
-                Handler handler = new Handler();
-                handler.postDelayed(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        Log.d("tag", "set blank page..");
-                        MainActivity.this.runOnUiThread(new Runnable() {
-                            public void run() {
-                                if (mWebView != null && mLoad) {
-                                    mLoad = false;
-                                    mWebView.loadUrl("about:blank");
-                                }
-                            }
-                        });
-
-                    }
-                }, 4000);
-            }
-        });
-
-    }
-
-    PowerManager pm;
-    PowerManager.WakeLock wl;
-
-    private void wakeDim() {
-
-        pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        wl = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "AutoB");
-        wl.acquire();
-    }
-
-    private void releaseDim() {
-        wl.release();
-    }
-
-    private class MyThread implements Runnable {
-        public void run() {
-            int seed = mList.size();
-            if (seed > 0) {
-                try {
-                    for (int i = 0; i < mMax && !Thread.interrupted(); i++) {
-                        int index = -1;
-                        do {
-                            index = (int) (Math.random() * seed);// index of list
-                        } while (index == mPrevious && seed > 1);// if seed is 1 , not do again.
-                        mPrevious = index;
-                        // random sleep interval 1-10
-                        int sleep_time = (int) (Math.random() * 10) + 1;
-                        Log.d(TAG, "SleepTime:" + sleep_time);
-                        sleep_time += SLEEP_INTERVAL;
-
-                        final String t_cURL = mList.get(index);
-
-                        Log.d(TAG, "Index:" + index);
-                        MainActivity.this.runOnUiThread(new Runnable() {
-                            public void run() {
-                                Log.d(TAG, "-->" + t_cURL);
-                                if (mWebView != null) {
-                                    mLoad = true;
-                                    mWebView.loadUrl(t_cURL);
-                                }
-                            }
-                        });
-
-                        synchronized (mWait) {
-                            mWait.wait(sleep_time * 1000);
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Log.d(TAG, "Got exception");
-                } finally {
-                    Log.d(TAG, "Ok, exit the thread");
-                }
-                MainActivity.this.runOnUiThread(new Runnable() {
-                    public void run() {
-                        Log.d(TAG, "Bye Bye.");
-                        finish();
-                    }
-                });
-            }
-        }
-    }
-
-    private class WebInfo {
-        private boolean mEnalbe;
-        private String mURL;
-        private String mName;
-
-        public WebInfo(String name, String url, boolean enable) {
-            mName = name;
-            mURL = url;
-            mEnalbe = enable;
-        }
-
-        boolean isEnable() {
-            return mEnalbe;
-        }
-
-        void setEnable(boolean enable) {
-            mEnalbe = enable;
-        }
-
-        String getName() {
-            return mName;
-        }
-
-        String getURL() {
-            return mURL;
-        }
-    }
+//    private class WebInfo {
+//        private boolean mEnalbe;
+//        private String mURL;
+//        private String mName;
+//
+//        public WebInfo(String name, String url, boolean enable) {
+//            mName = name;
+//            mURL = url;
+//            mEnalbe = enable;
+//        }
+//
+//        boolean isEnable() {
+//            return mEnalbe;
+//        }
+//
+//        void setEnable(boolean enable) {
+//            mEnalbe = enable;
+//        }
+//
+//        String getName() {
+//            return mName;
+//        }
+//
+//        String getURL() {
+//            return mURL;
+//        }
+//    }
 }
