@@ -1,5 +1,8 @@
 package com.example.kent.androidwebview;
 
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -29,6 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -110,6 +114,26 @@ public class MainActivity extends AppCompatActivity {
         menu.add(0, RESET_LIST, 4, MENU_RESET_LIST);
         return super.onCreateOptionsMenu(menu);
     }
+    private void startAlarm(){
+        Log.d(TAG, "startAlarm");
+        Calendar cal = Calendar.getInstance();
+        // 設定於 10 seconds
+        cal.add(Calendar.SECOND, 5);
+
+        Intent intent = new Intent(this, AlarmReceiver.class);
+        intent.putExtra("msg", "play_hskay");
+
+        PendingIntent pi = PendingIntent.getBroadcast(this, 1, intent, 0);
+
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+//        am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+
+
+        am.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
+                1000 * 15, pi);
+    }
+
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -126,8 +150,9 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 Log.d(TAG, "Start the thread");
-                                mThread = new Thread(new MyThread());
-                                mThread.start();
+//                                mThread = new Thread(new MyThread());
+//                                mThread.start();
+                                startAlarm();
                             }
                         })
                         .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
@@ -162,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "launch alert dialog");
 
                 final int size = mWebInfos.size();
-                String[] items = new String[size];
+                final String[] items = new String[size];
                 final boolean[] enables = new boolean[size];
 
                 //for (WebInfo webIntem : mWebInfos) {
@@ -175,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d(TAG, "name:" + name + " enable:" + enable);
                 }
 
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
                 builder.setTitle(" Edit Web List")
                         .setMultiChoiceItems(items, enables, new DialogInterface.OnMultiChoiceClickListener() {
                             @Override
@@ -200,7 +225,25 @@ public class MainActivity extends AppCompatActivity {
                             public void onClick(DialogInterface dialog, int id) {
                                 dialog.cancel();
                             }
-                        }).show();
+                        }).setNeutralButton("Deselect all", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                Log.d(TAG, "De-select all");
+                                for (int i = 0; i < size; i++) {
+                                    enables[i] = false;
+                                }
+                                //
+                                for(WebInfo item : mWebInfos){
+                                    item.setEnable(false);
+                                }
+                                builder.setMultiChoiceItems(items, enables, new DialogInterface.OnMultiChoiceClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
+                                        mWebInfos.get(indexSelected).setEnable(isChecked);
+                                    }
+                                });
+                             }
+                         })
+                        .show();
             }
             break;
 

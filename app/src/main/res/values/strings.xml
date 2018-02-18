@@ -16,4 +16,11 @@
 
     <string name="ok">ok</string>
     <string name="cancel">cancel</string>
+    <string name="title_activity_browse">BrowseActivity</string>
+
+    <!--foreground service-->
+    <string name="notification_title">AutoBrowser</string>
+    <string name="notification_message">Service is started.</string>
+    <string name="ticker_text">Start to browse..</string>
+
 </resources>
