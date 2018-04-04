@@ -11,6 +11,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
 import android.webkit.WebView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -19,8 +20,18 @@ import java.io.File;
 
 import java.io.FileOutputStream;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
     final private String TAG = "AutoBrowse";
@@ -29,9 +40,14 @@ public class MainActivity extends AppCompatActivity {
     final private int CHECK_MY_IP = 2;
     final private int EDIT_LIST = 3;
     final private int RESET_LIST = 4;
+    final private int STOP_AUTO = 5;
+    final private int UPDATE_LIST = 6;
+
     final private String MENU_START = "start";
+    final private String MENU_STOP = "stop";
     final private String MENU_CONFIG = "config";
     final private String MENU_CHECKIP = "check ip";
+    final private String MENU_UPDATE = "Update List";
     final private String MENU_EDIT_LIST = "Edit list";
     final private String MENU_RESET_LIST = "Reset list";
     // File related
@@ -39,8 +55,13 @@ public class MainActivity extends AppCompatActivity {
     private List<WebInfo> mWebInfos = new ArrayList<>();
     private WebView mWebView = null;
 
-
+    // data model for web info
     DataModel mData = null;
+
+    // okhttp
+    private String BASE_URL = "http://192.168.1.4:8000/getViewList";
+    final OkHttpClient client = new OkHttpClient();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,25 +70,22 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mData = DataModel.getInstance(MainActivity.this);
+//        new Thread(){
+//            @Override
+//            public void run() {
+//                test();
+//            }
+//        }.start();
     }
-
-//    @Override
-//    protected void onResume() {
-//        super.onResume();
-//        Log.d(TAG, "onResume");
-//    }
-//
-//    @Override
-//    protected void onPause() {
-//        super.onPause();
-//        Log.d(TAG, "destroy and stop thread");
-//    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         //參數1:群組id, 參數2:itemId, 參數3:item順序, 參數4:item名稱
         menu.add(0, START_AUTO, 0, MENU_START);
+        menu.add(0, STOP_AUTO, 0, MENU_STOP);
         menu.add(0, CONFIG, 1, MENU_CONFIG);
+        menu.add(0, UPDATE_LIST, 1, MENU_UPDATE);
+
         menu.add(0, CHECK_MY_IP, 2, MENU_CHECKIP);
         menu.add(0, EDIT_LIST, 3, MENU_EDIT_LIST);
         menu.add(0, RESET_LIST, 4, MENU_RESET_LIST);
@@ -75,11 +93,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private void startService(){
+    private void startService() {
         Intent intent = new Intent(this, AutoService.class);
         startService(intent);
     }
 
+    private void stopService() {
+        Intent intent = new Intent(this, AutoService.class);
+        stopService(intent);
+    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -111,6 +133,12 @@ public class MainActivity extends AppCompatActivity {
 
             }
             break;
+
+            case STOP_AUTO: {
+                stopService();
+            }
+            break;
+
             case CONFIG: {
                 Log.d(TAG, "start to config page");
                 Intent newintent = new Intent();
@@ -130,8 +158,18 @@ public class MainActivity extends AppCompatActivity {
             }
             break;
 
+            case UPDATE_LIST: {
+                new Thread() {
+                    @Override
+                    public void run() {
+                        updateList();
+                    }
+                }.start();
+            }
+            break;
+
             case EDIT_LIST: {
-                if(mData ==  null ){
+                if (mData == null) {
                     Log.e(TAG, "Fail to edit list");
                     return true;
                 }
@@ -170,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
                                 String newConfig = createJson();
                                 // save to file
                                 saveToFile(newConfig);
-                                mData.parseJson();
+                                mData.parseJson(null);
                             }
                         })
                         .setNegativeButton("No", new DialogInterface.OnClickListener() {
@@ -178,23 +216,23 @@ public class MainActivity extends AppCompatActivity {
                                 dialog.cancel();
                             }
                         }).setNeutralButton("Deselect all", new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                Log.d(TAG, "De-select all");
-                                for (int i = 0; i < size; i++) {
-                                    enables[i] = false;
-                                }
-                                //
-                                for(WebInfo item : mWebInfos){
-                                    item.setEnable(false);
-                                }
-                                builder.setMultiChoiceItems(items, enables, new DialogInterface.OnMultiChoiceClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
-                                        mWebInfos.get(indexSelected).setEnable(isChecked);
-                                    }
-                                });
-                             }
-                         })
+                    public void onClick(DialogInterface dialog, int id) {
+                        Log.d(TAG, "De-select all");
+                        for (int i = 0; i < size; i++) {
+                            enables[i] = false;
+                        }
+                        //
+                        for (WebInfo item : mWebInfos) {
+                            item.setEnable(false);
+                        }
+                        builder.setMultiChoiceItems(items, enables, new DialogInterface.OnMultiChoiceClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
+                                mWebInfos.get(indexSelected).setEnable(isChecked);
+                            }
+                        });
+                    }
+                })
                         .show();
             }
             break;
@@ -245,7 +283,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, " Delete file list. ");
             file.delete();
         }
-        mData.parseJson();
+        mData.parseJson(null);
     }
 
     private String createJson() {
@@ -271,174 +309,70 @@ public class MainActivity extends AppCompatActivity {
         return "";
     }
 
-//    private synchronized void parseJson() {
-//        try {
-//            mList.clear();
-//            mWebInfos.clear();
-//            String config = loadConfig();
-//            //Log.d(TAG," parse Json "+config);
-//            JSONObject obj = new JSONObject(config);
-//            JSONArray jlist = obj.getJSONArray("web");
-//            for (int i = 0; i < jlist.length(); i++) {
-//                JSONObject item = jlist.getJSONObject(i);
-//                String name = item.getString("name");
-//                String url = item.getString("url");
-//                boolean enable = item.getBoolean("enable");
-//                // Web info list
-//                mWebInfos.add(new WebInfo(name, url, enable));
-//                if (enable) {
-////                    Log.d(TAG, "Enable name:" + name + " enable:" + enable);
-//                    mList.add(url);
-//                }
-//            }
-//            Log.d(TAG, "Total size:" + mList.size());
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    private String loadConfig() {
-//        Log.d(TAG, "loadConfig");
-//        String json;
-//        InputStream is = null;
-//        try {
-//
-//            File file = new File(this.getFilesDir(), fileName);
-//            if (file.exists()) {
-//                Log.d(TAG, "Read file");
-//                is = new FileInputStream(file);
-//            } else {
-//                Log.d(TAG, "load default config.");
-//                is = getAssets().open(fileName);
-//            }
-//            int size = is.available();
-//            byte[] buffer = new byte[size];
-//            is.read(buffer);
-//            is.close();
-//            json = new String(buffer, "UTF-8");
-//        } catch (IOException ex) {
-//            ex.printStackTrace();
-//            return null;
-//        }
-//        return json;
-//    }
-//
-//    private void loadWeb() {
-//        Log.d(TAG, "loadWeb.");
-//        mWebView = (WebView) findViewById(R.id.webview);
-//        WebSettings webSettings = mWebView.getSettings();
-//
-//        webSettings.setJavaScriptEnabled(true);
-//        mWebView.setWebViewClient(new WebViewClient() {
-//            @Override
-//            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-//                Log.d(TAG, "shouldOverrideUrlLoading." + url);
-//                if (view != null) {
-//                    view.loadUrl(url);
-//                }
-//                return true;
-//            }
-//
-//            public void onPageFinished(WebView view, String url) {
-//                // do your stuff here
-//                Log.d(TAG, "Finish the page load." + url);
-//                Handler handler = new Handler();
-//                handler.postDelayed(new Runnable() {
-//
-//                    @Override
-//                    public void run() {
-//                        Log.d("tag", "set blank page..");
-//                        MainActivity.this.runOnUiThread(new Runnable() {
-//                            public void run() {
-//                                if (mWebView != null && mLoad) {
-//                                    mLoad = false;
-//                                    mWebView.loadUrl("about:blank");
-//                                }
-//                            }
-//                        });
-//
-//                    }
-//                }, 4000);
-//            }
-//        });
-//
-//    }
+
+    private void updateList() {
+        Log.d(TAG, "updateList");
+        try {
+
+            RequestBody body = new FormBody.Builder()
+                    .add("uuid", "217bd632-3577-11e8-b467-0ed5f89f718b")
+
+                    .build();
+
+            Request request = new Request.Builder()
+                    .url("http://192.168.1.4:8000/getViewList/")
+                    .post(body)
+                    .build();
+
+            Call call = client.newCall(request);
+            call.enqueue(new Callback() {
+                @Override
+                public void onResponse(Call call, final Response response) {
+                    Log.d(TAG, "onResponse ok." + response);
+                    // updateLocation(latitude, longitude);
+
+                    Log.d(TAG, "onResponse ok." + response.message());
+                    Log.d(TAG, "onResponse ok." + response.code());
 
 
-//    private class MyThread implements Runnable {
-//        public void run() {
-//            int seed = mList.size();
-//            if (seed > 0) {
-//                try {
-//                    for (int i = 0; i < mMax && !Thread.interrupted(); i++) {
-//                        int index = -1;
-//                        do {
-//                            index = (int) (Math.random() * seed);// index of list
-//                        } while (index == mPrevious && seed > 1);// if seed is 1 , not do again.
-//                        mPrevious = index;
-//                        // random sleep interval 1-10
-//                        int sleep_time = (int) (Math.random() * 10) + 1;
-//                        Log.d(TAG, "SleepTime:" + sleep_time);
-//                        sleep_time += SLEEP_INTERVAL;
-//
-//                        final String t_cURL = mList.get(index);
-//
-//                        Log.d(TAG, "Index:" + index);
-//                        MainActivity.this.runOnUiThread(new Runnable() {
-//                            public void run() {
-//                                Log.d(TAG, "-->" + t_cURL);
-//                                if (mWebView != null) {
-//                                    mLoad = true;
-//                                    mWebView.loadUrl(t_cURL);
-//                                }
-//                            }
-//                        });
-//
-//                        synchronized (mWait) {
-//                            mWait.wait(sleep_time * 1000);
-//                        }
-//                    }
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                    Log.d(TAG, "Got exception");
-//                } finally {
-//                    Log.d(TAG, "Ok, exit the thread");
-//                }
-//                MainActivity.this.runOnUiThread(new Runnable() {
-//                    public void run() {
-//                        Log.d(TAG, "Bye Bye.");
-//                        finish();
-//                    }
-//                });
-//            }
-//        }
-//    }
+                    MainActivity.this.runOnUiThread(new Runnable() {
+                        public void run() {
+                            try {
 
-//    private class WebInfo {
-//        private boolean mEnalbe;
-//        private String mURL;
-//        private String mName;
-//
-//        public WebInfo(String name, String url, boolean enable) {
-//            mName = name;
-//            mURL = url;
-//            mEnalbe = enable;
-//        }
-//
-//        boolean isEnable() {
-//            return mEnalbe;
-//        }
-//
-//        void setEnable(boolean enable) {
-//            mEnalbe = enable;
-//        }
-//
-//        String getName() {
-//            return mName;
-//        }
-//
-//        String getURL() {
-//            return mURL;
-//        }
-//    }
+                                String jsonData = response.body().string();
+                                Log.d(TAG, "jsonData " + jsonData);
+                                JSONArray jsonArray = new JSONArray(jsonData);
+                                for (int i = 0; i < jsonArray.length(); i++) {
+                                    JSONObject item = jsonArray.getJSONObject(i);
+                                    Log.d(TAG, "json array:" + item);
+                                }
+                                mData.parseJson(jsonArray);
+                                // save to file
+                                JSONObject obj = new JSONObject();
+                                JSONArray jlist = jsonArray;
+
+                                obj.put("web", jlist);
+                                Log.d(TAG, "Create Json:" + obj.toString());
+                                saveToFile(obj.toString());
+                                Toast.makeText(MainActivity.this, "Update done", Toast.LENGTH_LONG).show();
+
+
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+
+                }
+
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    Log.e(TAG, "fail to connect");
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
 }

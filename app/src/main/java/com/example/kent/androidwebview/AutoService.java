@@ -13,6 +13,7 @@ import java.util.Calendar;
 
 public class AutoService extends Service {
     private DataModel mDataModel = null;
+    private boolean firstLaunch = false;
 
     public AutoService() {
     }
@@ -28,6 +29,7 @@ public class AutoService extends Service {
     @Override
     public void onDestroy() {
         Log.d(Common.TAG, "Service is stopped...");
+        canelAlarm();
         DataModel.release();
         mDataModel = null;
     }
@@ -36,10 +38,14 @@ public class AutoService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         // The service is starting, due to a call to startService()
         Log.d(Common.TAG, "onStartCommand...");
-        // Create interval between 10 to 20
-//        int value = Common.getRandom(20,10);
         if (mDataModel != null) {
-            int value = mDataModel.getNextInterval();
+            int value = 2;
+            if (firstLaunch) {
+                value = mDataModel.getNextInterval();
+            } else {
+                firstLaunch = true;
+            }
+
             startNextAlarm(value);
         }
         return START_STICKY;
@@ -64,7 +70,7 @@ public class AutoService extends Service {
                 new Notification.Builder(this)
                         .setContentTitle(getText(R.string.notification_title))
                         .setContentText(getText(R.string.notification_message))
-//                        .setSmallIcon(R.drawable.icon)
+//                        .setSmallIcon(R.drawable.notify)
                         .setContentIntent(pendingIntent)
                         .setTicker(getText(R.string.ticker_text))
                         .build();
@@ -98,5 +104,13 @@ public class AutoService extends Service {
 //                1000 * 15, pi);
         am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
 
+    }
+    private void canelAlarm(){
+        Intent intent = new Intent(this, AlarmReceiver.class);
+
+        PendingIntent pi = PendingIntent.getBroadcast(this, 1, intent, PendingIntent.FLAG_ONE_SHOT);
+
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        am.cancel(pi);
     }
 }

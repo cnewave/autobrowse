@@ -1,6 +1,5 @@
 package com.example.kent.androidwebview;
 
-import android.app.KeyguardManager;
 import android.content.Context;
 import android.os.Handler;
 import android.os.PowerManager;
@@ -13,14 +12,15 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 public class BrowseActivity extends AppCompatActivity {
-    private int TIME_OUT = 10000;// 10 seconds
-
+    private int TIME_OUT = 15000;// 15 seconds
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(Common.TAG, "Create ==============\n\n");
         setContentView(R.layout.activity_browse);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
         wakeLock();
         postDelay();
     }
@@ -30,7 +30,7 @@ public class BrowseActivity extends AppCompatActivity {
         super.onPostResume();
         // load data model and get url
         String url = DataModel.getInstance(this).getRandomURL();
-        Log.d(Common.TAG, "go to :"+url);
+        Log.d(Common.TAG, "go to :" + url);
         loadWeb(url);
     }
 
@@ -45,6 +45,7 @@ public class BrowseActivity extends AppCompatActivity {
         new Handler().postDelayed(new Runnable() {
             public void run() {
                 //處理少量資訊或UI
+                loadWeb("about:blank");
                 Log.d(Common.TAG, "Close the Activity");
                 finish();
             }
@@ -59,30 +60,20 @@ public class BrowseActivity extends AppCompatActivity {
         wakeLock = pm.newWakeLock((PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP), Common.TAG);
         wakeLock.acquire();
 
-
-        KeyguardManager keyguardManager = (KeyguardManager) getApplicationContext().getSystemService(Context.KEYGUARD_SERVICE);
-        KeyguardManager.KeyguardLock keyguardLock = keyguardManager.newKeyguardLock("TAG");
-        keyguardLock.disableKeyguard();
     }
 
     private void releaseLock() {
         Log.d(Common.TAG, "release lock");
-//        PowerManager pm = (PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE);
         if (wakeLock != null && wakeLock.isHeld()) {
             Log.d(Common.TAG, "release lock done");
             wakeLock.release();
         } else {
             Log.d(Common.TAG, "skip release lock");
         }
-
-
-        KeyguardManager keyguardManager = (KeyguardManager) getApplicationContext().getSystemService(Context.KEYGUARD_SERVICE);
-        KeyguardManager.KeyguardLock keyguardLock = keyguardManager.newKeyguardLock("TAG");
-        keyguardLock.reenableKeyguard();
     }
 
     private void loadWeb(String t_cURL) {
-        Log.d(Common.TAG, "loadWeb.");
+        Log.d(Common.TAG, "loadWeb:" + t_cURL);
         final WebView mWebView = (WebView) findViewById(R.id.webview);
         WebSettings webSettings = mWebView.getSettings();
 
@@ -100,26 +91,9 @@ public class BrowseActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 // do your stuff here
                 Log.d(Common.TAG, "Finish the page load." + url);
-//                Handler handler = new Handler();
-//                handler.postDelayed(new Runnable() {
-//
-//                    @Override
-//                    public void run() {
-//                        Log.d("tag", "set blank page..");
-//                        BrowseActivity.this.runOnUiThread(new Runnable() {
-//                            public void run() {
-//                                if (mWebView != null) {
-//                                    mWebView.loadUrl("about:blank");
-//                                }
-//                            }
-//                        });
-//
-//                    }
-//                }, 4000);
             }
         });
 
         mWebView.loadUrl(t_cURL);
-
     }
 }

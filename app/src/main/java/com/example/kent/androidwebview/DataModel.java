@@ -42,7 +42,7 @@ public class DataModel {
             mMe = new DataModel(context);
         }
         mMe.getConfig(context);
-        mMe.parseJson();
+        mMe.parseJson(null);
         return mMe;
     }
 
@@ -87,14 +87,14 @@ public class DataModel {
     }
     // get data model from xml or files
 
-    public synchronized void parseJson() {
+    public synchronized void parseJson(JSONArray refArray) {
         try {
             mUserSelection.clear();
             mWebInfos.clear();
             String config = loadConfig();
             //Log.d(TAG," parse Json "+config);
             JSONObject obj = new JSONObject(config);
-            JSONArray jlist = obj.getJSONArray("web");
+            JSONArray jlist = (refArray == null)? obj.getJSONArray("web") : refArray;
             for (int i = 0; i < jlist.length(); i++) {
                 JSONObject item = jlist.getJSONObject(i);
                 String name = item.getString("name");
@@ -152,6 +152,7 @@ public class DataModel {
 
     public String getRandomURL() {
         int seed = mUserSelection.size();
+        Log.d("AutoBrowse","Seed:"+seed);
         int index;
         do {
             index = (int) (Math.random() * seed);// index of list

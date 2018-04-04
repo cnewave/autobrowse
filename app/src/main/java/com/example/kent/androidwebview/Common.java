@@ -8,7 +8,7 @@ import java.util.Random;
 
 public class Common {
     public static String TAG = "AutoBrowse";
-    public static boolean DEBUG = false;
+    public static boolean DEBUG = true;
 
     /**
      * getRandom value between 0 to max value
