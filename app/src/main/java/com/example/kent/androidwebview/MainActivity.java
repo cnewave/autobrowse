@@ -320,7 +320,7 @@ public class MainActivity extends AppCompatActivity {
                     .build();
 
             Request request = new Request.Builder()
-                    .url("http://192.168.1.4:8000/getViewList/")
+                    .url("http://34.209.91.26:8000/getViewList/")
                     .post(body)
                     .build();
 
@@ -333,35 +333,37 @@ public class MainActivity extends AppCompatActivity {
 
                     Log.d(TAG, "onResponse ok." + response.message());
                     Log.d(TAG, "onResponse ok." + response.code());
+                    try {
+                        final String jsonData = response.body().string();
+                        MainActivity.this.runOnUiThread(new Runnable() {
+                            public void run() {
+                                try {
 
 
-                    MainActivity.this.runOnUiThread(new Runnable() {
-                        public void run() {
-                            try {
+                                    Log.d(TAG, "jsonData " + jsonData);
+                                    JSONArray jsonArray = new JSONArray(jsonData);
+                                    for (int i = 0; i < jsonArray.length(); i++) {
+                                        JSONObject item = jsonArray.getJSONObject(i);
+                                        Log.d(TAG, "json array:" + item);
+                                    }
+                                    mData.parseJson(jsonArray);
+                                    // save to file
+                                    JSONObject obj = new JSONObject();
+                                    JSONArray jlist = jsonArray;
 
-                                String jsonData = response.body().string();
-                                Log.d(TAG, "jsonData " + jsonData);
-                                JSONArray jsonArray = new JSONArray(jsonData);
-                                for (int i = 0; i < jsonArray.length(); i++) {
-                                    JSONObject item = jsonArray.getJSONObject(i);
-                                    Log.d(TAG, "json array:" + item);
+                                    obj.put("web", jlist);
+                                    Log.d(TAG, "Create Json:" + obj.toString());
+                                    saveToFile(obj.toString());
+                                    Toast.makeText(MainActivity.this, "Update done", Toast.LENGTH_LONG).show();
+
+                                } catch (Exception e) {
+                                    e.printStackTrace();
                                 }
-                                mData.parseJson(jsonArray);
-                                // save to file
-                                JSONObject obj = new JSONObject();
-                                JSONArray jlist = jsonArray;
-
-                                obj.put("web", jlist);
-                                Log.d(TAG, "Create Json:" + obj.toString());
-                                saveToFile(obj.toString());
-                                Toast.makeText(MainActivity.this, "Update done", Toast.LENGTH_LONG).show();
-
-
-                            } catch (Exception e) {
-                                e.printStackTrace();
                             }
-                        }
-                    });
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
 
                 }
 
