@@ -18,4 +18,22 @@
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="@string/pref_interval_display_name" />
+    <EditTextPreference
+        android:capitalize="words"
+        android:defaultValue="@string/pref_default_url_name"
+        android:inputType="text"
+        android:key="server_url"
+        android:maxLines="1"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="@string/pref_url_display_name" />
+    <EditTextPreference
+        android:capitalize="words"
+        android:defaultValue="@string/pref_default_token_name"
+        android:inputType="text"
+        android:key="token"
+        android:maxLines="1"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="@string/pref_token_display_name" />
 </PreferenceScreen>

@@ -1,18 +1,28 @@
 package com.example.kent.androidwebview;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
+import android.webkit.CookieSyncManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.net.HttpCookie;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.List;
+
+
 public class BrowseActivity extends AppCompatActivity {
-    private int TIME_OUT = 15000;// 15 seconds
+    private int TIME_OUT = 90 * 1000;// 90 seconds
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,6 +34,7 @@ public class BrowseActivity extends AppCompatActivity {
         wakeLock();
         postDelay();
     }
+
 
     @Override
     protected void onPostResume() {
@@ -73,11 +84,21 @@ public class BrowseActivity extends AppCompatActivity {
     }
 
     private void loadWeb(String t_cURL) {
-        Log.d(Common.TAG, "loadWeb:" + t_cURL);
+        Log.d(Common.TAG, "Remove old cookieloadWeb:" + t_cURL);
         final WebView mWebView = (WebView) findViewById(R.id.webview);
         WebSettings webSettings = mWebView.getSettings();
-
         webSettings.setJavaScriptEnabled(true);
+        mWebView.getSettings().setUserAgentString("user-agent=Mozilla/5.0 (Linux; Android 5.0.1; K007 Build/LRX22C) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157");
+
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            Log.d(Common.TAG, "More than SDK 21 ");
+            CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
+        } else {
+            Log.d(Common.TAG, "Less than SDK 21 ");
+            CookieManager.getInstance().setAcceptCookie(true);
+        }
+        CookieManager.getInstance().removeSessionCookie();
+
         mWebView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {

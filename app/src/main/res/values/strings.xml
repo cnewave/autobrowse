@@ -13,6 +13,12 @@
 
     <string name="pref_interval_display_name">Sleep Interval</string>
     <string name="pref_default_interval_name">30</string>
+    <!-- url -->
+    <string name="pref_url_display_name">Server URL</string>
+    <string name="pref_default_url_name">https://duck2server.herokuapp.com</string>
+    <!-- token-->
+    <string name="pref_token_display_name">Token</string>
+    <string name="pref_default_token_name">33c79212-d803-422f-97e1-006b8b45fbdf</string>
 
     <string name="ok">ok</string>
     <string name="cancel">cancel</string>

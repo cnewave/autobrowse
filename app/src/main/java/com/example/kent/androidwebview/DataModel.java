@@ -24,6 +24,9 @@ public class DataModel {
 
     private int mMax = 0;
     private int SLEEP_INTERVAL = 10;// minimum should bigger than 10
+    private String SERVER_URL = "https://duck2server.herokuapp.com";
+    private String TOKEN = "";
+
     private int mCurrent = 0;
     // data model related
     private final String fileName = "pixnet.json";
@@ -58,10 +61,12 @@ public class DataModel {
         try {
             mMax = Integer.parseInt(t_Max);
             SLEEP_INTERVAL = Integer.parseInt(t_InterVal);
+            SERVER_URL = PreferenceManager.getDefaultSharedPreferences(context).getString("server_url", SERVER_URL);
+            TOKEN = PreferenceManager.getDefaultSharedPreferences(context).getString("token",context.getString(R.string.pref_default_token_name));
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Log.d(Common.TAG, "DataModel max:" + mMax + " interval:" + SLEEP_INTERVAL);
+        Log.d(Common.TAG, "DataModel max:" + mMax + " interval:" + SLEEP_INTERVAL+ " server url:"+SERVER_URL);
     }
 
     public boolean isReachMaximum() {
@@ -84,6 +89,13 @@ public class DataModel {
         int value = Common.getRandom(20, 10);
         value += SLEEP_INTERVAL;
         return value;
+    }
+
+    public String getServerURL(){
+        return SERVER_URL;
+    }
+    public String getToken(){
+        return TOKEN;
     }
     // get data model from xml or files
 

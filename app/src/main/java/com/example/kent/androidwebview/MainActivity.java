@@ -3,6 +3,7 @@ package com.example.kent.androidwebview;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -27,7 +28,6 @@ import java.util.List;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.FormBody;
-import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -55,11 +55,16 @@ public class MainActivity extends AppCompatActivity {
     private List<WebInfo> mWebInfos = new ArrayList<>();
     private WebView mWebView = null;
 
+    private SharedPreferences settings;
+    private String SERVER_SETTING = "server_setting";
+    private String SERVER_URL = "server_url";
+    private String DEFAULT_URL = "https://duck2server.herokuapp.com";
+    private String UUID = "33c79212-d803-422f-97e1-006b8b45fbdf";
+
     // data model for web info
     DataModel mData = null;
 
     // okhttp
-    private String BASE_URL = "http://192.168.1.4:8000/getViewList";
     final OkHttpClient client = new OkHttpClient();
 
 
@@ -70,12 +75,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mData = DataModel.getInstance(MainActivity.this);
-//        new Thread(){
-//            @Override
-//            public void run() {
-//                test();
-//            }
-//        }.start();
+        settings = this.getSharedPreferences(SERVER_SETTING, 0);
+        DEFAULT_URL = settings.getString(SERVER_URL, DEFAULT_URL);
+
     }
 
     @Override
@@ -86,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
         menu.add(0, CONFIG, 1, MENU_CONFIG);
         menu.add(0, UPDATE_LIST, 1, MENU_UPDATE);
 
-        menu.add(0, CHECK_MY_IP, 2, MENU_CHECKIP);
+//        menu.add(0, CHECK_MY_IP, 2, MENU_CHECKIP);
         menu.add(0, EDIT_LIST, 3, MENU_EDIT_LIST);
         menu.add(0, RESET_LIST, 4, MENU_RESET_LIST);
         return super.onCreateOptionsMenu(menu);
@@ -187,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
                     boolean enable = webIntem.isEnable();
                     items[i] = name;
                     enables[i] = enable;
-//                    Log.d(TAG, "name:" + name + " enable:" + enable);
+
                 }
 
                 final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -313,14 +315,18 @@ public class MainActivity extends AppCompatActivity {
     private void updateList() {
         Log.d(TAG, "updateList");
         try {
+            UUID = DataModel.getInstance(MainActivity.this).getToken();
 
+            Log.d(TAG," updateList Token:"+UUID);
             RequestBody body = new FormBody.Builder()
-                    .add("uuid", "217bd632-3577-11e8-b467-0ed5f89f718b")
-
+                    .add("uuid", UUID)
                     .build();
 
+            DEFAULT_URL =  DataModel.getInstance(MainActivity.this).getServerURL();
+
+            String url = DEFAULT_URL + "/getViewList/";
             Request request = new Request.Builder()
-                    .url("http://34.209.91.26:8000/getViewList/")
+                    .url(url)
                     .post(body)
                     .build();
 
@@ -338,7 +344,6 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this.runOnUiThread(new Runnable() {
                             public void run() {
                                 try {
-
 
                                     Log.d(TAG, "jsonData " + jsonData);
                                     JSONArray jsonArray = new JSONArray(jsonData);

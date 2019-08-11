@@ -152,6 +152,8 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         addPreferencesFromResource(R.xml.pref_general);
         bindPreferenceSummaryToValue(findPreference("max_count"));
         bindPreferenceSummaryToValue(findPreference("sleep_interval"));
+        bindPreferenceSummaryToValue(findPreference("server_url"));
+        bindPreferenceSummaryToValue(findPreference("token"));
 
     }
 
@@ -194,6 +196,9 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             // guidelines.
             bindPreferenceSummaryToValue(findPreference("max_count"));
             bindPreferenceSummaryToValue(findPreference("sleep_interval"));
+            bindPreferenceSummaryToValue(findPreference("server_url"));
+            bindPreferenceSummaryToValue(findPreference("token"));
+
         }
 
         @Override
